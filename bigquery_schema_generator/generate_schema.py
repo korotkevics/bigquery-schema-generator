@@ -186,17 +186,13 @@ class SchemaGenerator:
 
         # new 'soft' does not clobber old 'hard'
         if old_status == 'hard' and new_status == 'soft':
-            return old_schema_entry
+            new_schema_entry['info']['type'] = old_schema_entry['info']['type']
+            return new_schema_entry
 
         # new 'hard' clobbers old 'soft'
         if old_status == 'soft' and new_status == 'hard':
+            new_schema_entry['status'] = old_status
             return new_schema_entry
-
-        # Verify that it's soft->soft or hard->hard
-        if old_status != new_status:
-            raise Exception(
-                ('Unexpected schema_entry type, this should never happen: '
-                 'old (%s); new (%s)') % (old_status, new_status))
 
         old_info = old_schema_entry['info']
         old_name = old_info['name']
@@ -373,6 +369,8 @@ class SchemaGenerator:
                     return 'QFLOAT'  # quoted float
                 elif value.lower() in ['true', 'false']:
                     return 'QBOOLEAN'  # quoted boolean
+                elif not value:
+                    return '__null__'
                 else:
                     return 'STRING'
             else:
@@ -454,6 +452,7 @@ class SchemaGenerator:
 
 
 def convert_type(atype, btype):
+
     """Return the compatible type between 'atype' and 'btype'. Return 'None'
     if there is no compatible type. Type conversions (in order of precedence)
     are:
@@ -469,6 +468,7 @@ def convert_type(atype, btype):
     * (DATE, TIME, TIMESTAMP, QBOOLEAN, QINTEGER, QFLOAT, STRING) +
         (DATE, TIME, TIMESTAMP, QBOOLEAN, QINTEGER, QFLOAT, STRING) => STRING
     """
+
     # type + type => type
     if atype == btype:
         return atype
@@ -514,6 +514,16 @@ def convert_type(atype, btype):
         return 'FLOAT'
     if atype == 'QFLOAT' and btype == 'INTEGER':
         return 'FLOAT'
+
+    if atype == 'STRING' and btype == 'QINTEGER':
+        return 'INTEGER'
+    if atype == 'QINTEGER' and btype == 'STRING':
+        return 'INTEGER'
+
+    if atype == 'STRING' and btype == 'QBOOLEAN':
+        return 'BOOLEAN'
+    if atype == 'QBOOLEAN' and btype == 'STRING':
+        return 'BOOLEAN'
 
     # All remaining combination of:
     # (DATE, TIME, TIMESTAMP, QBOOLEAN, QINTEGER, QFLOAT, STRING) +
